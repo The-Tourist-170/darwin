@@ -7,10 +7,23 @@ authors = [
     { name = "The-Tourist-170", email = "ayushya.official@gmail.com" }
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "dotenv>=0.9.9",
+    "langchain>=1.4.4",
+    "langchain-openai>=1.7.0",
+    "langgraph>=1.1.0",
+    "langgraph-checkpoint-postgres>=2.0.0",
+    "rq>=2.0.0",
+    "redis>=5.0.0",
+    "qdrant-client>=1.12.0",
+    "neo4j>=5.0.0",
+    "psycopg[binary]>=3.3.6",
+    "mem0ai[graph]>=0.1.100,<1",
+    "sentence-transformers>=6.1.0",
+]
 
 [project.scripts]
-darwin = "darwin:main"
+darwin = "darwin.main:main"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]

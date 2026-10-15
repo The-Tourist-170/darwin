@@ -1,0 +1,4 @@
+.commandcode/taste/
+src/darwin/core/__pycache__/
+.env
+src/darwin/__pycache__/
