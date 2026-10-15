@@ -42,68 +42,42 @@ Darwin stands on the shoulders of the Model Context Protocol ecosystem:
 ## Architecture & Flow
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'fontFamily': 'Inter, Segoe UI, sans-serif'
-  }
-}}%%
-flowchart TD
-    YOU(["👤 You"]):::user
-    CHAT["💻 CLI Chat Loop<br/>(main.py)"]:::entry
-    AGENT["🧠 StateGraph Agent<br/>Reasoning Loop"]:::agent
-    TOOLS["🔧 Tools / MCP<br/>(Phase 2+)"]:::tools
-    MEMOS["mem0<br/>Memory Client"]:::tx
-    VECTOR[("🗄️ Qdrant<br/>Vector Store")]:::vector
-    GRAPH[("🕸️ Neo4j<br/>Graph Store")]:::graph
-    PG[("💾 Postgres<br/>Checkpointer")]:::postgres
-    QUEUE[("⚡ Valkey<br/>+ RQ Workers")]:::queue
-    PROXY["🤖 LLM Provider<br/>(OpenAI / DeepSeek / vLLM)"]:::proxy
+graph TD;
+    User[User] --> Chat[CLI chat loop];
+    Chat --> Agent[StateGraph agent];
+    Agent --> Tools[Tools and MCP];
+    Tools --> Agent;
+    Agent --> LLM[LLM provider];
+    LLM --> Agent;
+    Agent --> Postgres[Postgres checkpointer];
+    Postgres --> Agent;
+    Agent --> Memory[mem0 memory client];
+    Memory --> Agent;
+    Memory --> Qdrant[Qdrant vector store];
+    Memory --> Neo4j[Neo4j graph store];
+    Valkey[Valkey and RQ workers] --> Agent;
 
-    YOU -->|prompt| CHAT
-    CHAT -->|each turn| AGENT
-    AGENT -->|tool_calls| TOOLS
-    TOOLS -->|results| AGENT
-    AGENT <-->|prompt / reply| PROXY
-    AGENT <-->|checkpoint| PG
-    AGENT <-->|recall / sync| MEMOS
-    QUEUE -- background jobs --> AGENT
-    MEMOS -->|vectors| VECTOR
-    MEMOS -->|entities + relations| GRAPH
-
-    linkStyle 0 stroke:#e74c3c,stroke-width:3px
-    linkStyle 1 stroke:#f39c12,stroke-width:3px
-    linkStyle 2 stroke:#f1c40f,stroke-width:3px
-    linkStyle 3 stroke:#2ecc71,stroke-width:3px
-    linkStyle 4 stroke:#1abc9c,stroke-width:3px
-    linkStyle 5 stroke:#3498db,stroke-width:3px
-    linkStyle 6 stroke:#5dade2,stroke-width:3px
-    linkStyle 7 stroke:#af7ac5,stroke-width:3px
-    linkStyle 8 stroke:#e91e63,stroke-width:3px
-    linkStyle 9 stroke:#ff7043,stroke-width:3px
-
-    classDef user fill:#ffeaa7,stroke:#fdcb6e,color:#2d3436,stroke-width:4px
-    classDef entry fill:#74b9ff,stroke:#0984e3,color:#2d3436,stroke-width:4px
-    classDef agent fill:#55efc4,stroke:#00b894,color:#2d3436,stroke-width:4px
-    classDef tools fill:#fab1a0,stroke:#ff7675,color:#2d3436,stroke-width:4px
-    classDef tx fill:#fd79a8,stroke:#e84393,color:#2d3436,stroke-width:4px
-    classDef vector fill:#a29bfe,stroke:#6c5ce7,color:#2d3436,stroke-width:4px
-    classDef graph fill:#81ecec,stroke:#00cec9,color:#2d3436,stroke-width:4px
-    classDef postgres fill:#ffe5b4,stroke:#eb9950,color:#2d3436,stroke-width:4px
-    classDef queue fill:#ffab91,stroke:#ff7043,color:#2d3436,stroke-width:4px
-    classDef proxy fill:#b2dfda,stroke:#00897b,color:#2d3436,stroke-width:4px
+    linkStyle 0 stroke:#e74c3c,stroke-width:3px;
+    linkStyle 1 stroke:#f39c12,stroke-width:3px;
+    linkStyle 2 stroke:#f1c40f,stroke-width:3px;
+    linkStyle 3 stroke:#2ecc71,stroke-width:3px;
+    linkStyle 4 stroke:#1abc9c,stroke-width:3px;
+    linkStyle 5 stroke:#3498db,stroke-width:3px;
+    linkStyle 6 stroke:#5dade2,stroke-width:3px;
+    linkStyle 7 stroke:#af7ac5,stroke-width:3px;
+    linkStyle 8 stroke:#e91e63,stroke-width:3px;
+    linkStyle 9 stroke:#ff7043,stroke-width:3px;
+    linkStyle 10 stroke:#8e44ad,stroke-width:3px;
+    linkStyle 11 stroke:#16a085,stroke-width:3px;
+    linkStyle 12 stroke:#d35400,stroke-width:3px;
 ```
 
 ## Build Phases
 
-```mermaid
-timeline
-    title Darwin Build Roadmap
-    Phase 1 ✅ : Core Reasoning Engine : StateGraph + Checkpointing : mem0 Memory (Qdrant + Neo4j)
-    Phase 2 : Native Tooling : Sandboxed shell : File ops + document parser : Pydantic guardrails
-    Phase 3 : MCP & Routing : MCP servers (Phase A) : Tool RAG + 2-tier permissions
-    Phase 4 : DevOps : Docker/Lima sandboxing : Git/GitHub MCP
-```
+- **Phase 1 — Core Reasoning Engine:** StateGraph, Postgres checkpointing, mem0 memory (Qdrant + Neo4j). ✅
+- **Phase 2 — Native Tooling:** Sandboxed shell, file operations, document parser, Pydantic guardrails.
+- **Phase 3 — MCP & Routing:** MCP servers, Tool RAG, two-tier permissions.
+- **Phase 4 — DevOps:** Docker/Lima sandboxing, Git/GitHub MCP.
 
 ## Getting Started
 
