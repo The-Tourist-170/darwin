@@ -21,7 +21,7 @@ import psycopg
 from darwin.core.config import config
 
 MAX_BUFFER_MESSAGES = 50
-MUTATING_TOOLS = {"write_file"}
+MUTATING_TOOLS = {"write_file", "run_shell"}
 SYSTEM_PROMPT = (
     "You are Darwin, an autonomous general-purpose agent. "
     "Always think through a plan before executing any work."

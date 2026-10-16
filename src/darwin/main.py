@@ -8,7 +8,7 @@ from langgraph.types import Command
 from darwin.core.llm import get_llm
 from darwin.core.memory_client import MemoryClient
 from darwin.core.orchestrator import build_graph, SYSTEM_PROMPT
-from darwin.tools import FILESYSTEM_TOOLS
+from darwin.tools import ALL_TOOLS
 
 
 def _run(graph, payload: dict, config: dict) -> dict:
@@ -26,7 +26,7 @@ def _run(graph, payload: dict, config: dict) -> dict:
 
 
 def main() -> None:
-    graph = build_graph(get_llm(), tools=FILESYSTEM_TOOLS)
+    graph = build_graph(get_llm(), tools=ALL_TOOLS)
     memory = MemoryClient()
     thread_id = "default"
     config = {"configurable": {"thread_id": thread_id}}

@@ -1,7 +1,8 @@
 """Darwin native tools."""
 
 from darwin.tools.filesystem import list_directory, read_file, write_file
+from darwin.tools.shell import run_shell
 
-FILESYSTEM_TOOLS = [read_file, write_file, list_directory]
+ALL_TOOLS = [read_file, write_file, list_directory, run_shell]
 
-__all__ = ["FILESYSTEM_TOOLS", "read_file", "write_file", "list_directory"]
+__all__ = ["ALL_TOOLS", "read_file", "write_file", "list_directory", "run_shell"]
