@@ -20,6 +20,7 @@ dependencies = [
     "psycopg[binary]>=3.3.6",
     "mem0ai[graph]>=0.1.100,<1",
     "sentence-transformers>=6.1.0",
+    "markitdown[pdf]>=0.1.0",
 ]
 
 [project.scripts]

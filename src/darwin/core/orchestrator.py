@@ -9,7 +9,7 @@
 from typing import Annotated, TypedDict
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import BaseMessage, RemoveMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, RemoveMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
@@ -19,6 +19,7 @@ from langgraph.types import interrupt
 import psycopg
 
 from darwin.core.config import config
+from darwin.guardrails import sanitize_input, sanitize_output
 
 MAX_BUFFER_MESSAGES = 50
 MUTATING_TOOLS = {"write_file", "run_shell"}
@@ -63,13 +64,36 @@ def _route_approval(state: AgentState) -> str:
     return "tools" if state.get("approved", True) else "agent"
 
 
+def _sanitize_history(state: AgentState) -> list[BaseMessage]:
+    """Redact secrets everywhere and reject injection on the latest human input."""
+    cleaned = []
+    for i, msg in enumerate(state["messages"]):
+        if isinstance(msg, HumanMessage):
+            try:
+                cleaned.append(HumanMessage(content=sanitize_input(msg.content), id=msg.id))
+            except ValueError:
+                if i == len(state["messages"]) - 1:
+                    raise
+                cleaned.append(msg)
+        elif isinstance(msg, ToolMessage):
+            cleaned.append(ToolMessage(content=sanitize_output(msg.content), tool_call_id=msg.tool_call_id, id=msg.id))
+        else:
+            cleaned.append(msg)
+    return cleaned
+
+
 def build_graph(llm: BaseChatModel, tools: list[BaseTool] | None = None) -> StateGraph:
     tools = tools or []
     model = llm.bind_tools(tools) if tools else llm
 
     def agent_node(state: AgentState) -> AgentState:
-        messages = [SystemMessage(content=SYSTEM_PROMPT), *state["messages"]]
-        return {"messages": [model.invoke(messages)]}
+        try:
+            messages = _sanitize_history(state)
+        except ValueError:
+            return {"messages": [AIMessage(content="Blocked by input guardrails.")]}
+        reply = model.invoke([SystemMessage(content=SYSTEM_PROMPT), *messages])
+        reply.content = sanitize_output(reply.content)
+        return {"messages": [reply]}
 
     graph = StateGraph(AgentState)
     graph.add_node("guard", _trim_buffer)

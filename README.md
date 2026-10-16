@@ -26,6 +26,7 @@ Darwin autonomously reasons, navigates file systems, executes code in sandboxed 
 | Embeddings | sentence-transformers/all-MiniLM-L6-v2 (local, via mem0) |
 | Validation | Pydantic structured outputs |
 | Guardrails | Deterministic prompt clamp + command gating |
+| Native tools | Sandboxed shell, file ops, document parser |
 
 ## MCP Shoutout
 
@@ -75,7 +76,7 @@ graph TD;
 ## Build Phases
 
 - **Phase 1 — Core Reasoning Engine:** StateGraph, Postgres checkpointing, mem0 memory (Qdrant + Neo4j). ✅
-- **Phase 2 — Native Tooling:** Sandboxed shell, file operations, document parser, Pydantic guardrails.
+- **Phase 2 — Native Tooling:** Sandboxed shell, file operations, document parser, Pydantic guardrails. ✅
 - **Phase 3 — MCP & Routing:** MCP servers, Tool RAG, two-tier permissions.
 - **Phase 4 — DevOps:** Docker/Lima sandboxing, Git/GitHub MCP.
 
