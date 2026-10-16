@@ -1,9 +1,9 @@
 """Bridge MCP tools into LangChain tools (replaces an adapter library)."""
 
-from typing import Any
+from typing import Any, Literal
 
 from langchain_core.tools import StructuredTool
-from pydantic import create_model
+from pydantic import Field, create_model
 
 from darwin.mcp.client import MCPClient
 
@@ -17,7 +17,11 @@ JSON_TYPES = {
 }
 
 
-def _json_type(spec: dict) -> type:
+def _json_type(spec: dict) -> Any:
+    if "const" in spec:
+        return Literal[tuple([spec["const"]])]
+    if spec.get("enum"):
+        return Literal[tuple(spec["enum"])]
     kind = spec.get("type")
     if isinstance(kind, list):  # e.g. ["string", "null"]
         kind = next((k for k in kind if k != "null"), "string")
@@ -25,11 +29,14 @@ def _json_type(spec: dict) -> type:
 
 
 def _args_model(tool_name: str, schema: dict):
-    """Build a Pydantic args model from an MCP JSON schema."""
+    """Build a Pydantic args model from an MCP JSON schema (enums and defaults preserved)."""
     properties = schema.get("properties", {})
     required = set(schema.get("required", []))
     fields: dict[str, Any] = {
-        key: (_json_type(spec), ... if key in required else None)
+        key: (
+            _json_type(spec),
+            Field(... if key in required else spec.get("default"), description=spec.get("description", "")),
+        )
         for key, spec in properties.items()
     }
     return create_model(f"{tool_name}_args", **fields)
@@ -40,7 +47,10 @@ def to_langchain_tool(client: MCPClient, meta: dict) -> StructuredTool:
     server, tool = meta["server"], meta["name"]
 
     async def _call(**kwargs):
-        return await client.call_tool(server, tool, kwargs)
+        # Omit unset optional args: MCP servers distinguish "absent" from null,
+        # and our generated model gives every optional field a None default.
+        args = {key: value for key, value in kwargs.items() if value is not None}
+        return await client.call_tool(server, tool, args)
 
     return StructuredTool.from_function(
         coroutine=_call,

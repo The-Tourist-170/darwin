@@ -23,10 +23,14 @@ from darwin.guardrails.scope import scope
 from darwin.tools.registry import select_tools
 
 MAX_BUFFER_MESSAGES = 50
+MAX_TOOL_ROUNDS = 12
 NATIVE_MUTATING = {"write_file", "run_shell"}
 SYSTEM_PROMPT = (
     "You are Darwin, an autonomous general-purpose agent. "
-    "Always think through a plan before executing any work."
+    "Always think through a plan before executing any work. "
+    "Prefer a dedicated tool over the shell: for web requests, scraping or search use the "
+    "fetch/firecrawl/exa/browser tools, and for files or databases the filesystem/sqlite/postgres "
+    "tools. Use run_shell only when no dedicated tool fits the job."
 )
 
 
@@ -201,6 +205,23 @@ def build_graph(
         except ValueError:
             return {"messages": [AIMessage(content="Blocked by input guardrails.")]}
 
+        # Loop guard: stop a turn that keeps retrying tools after repeated failures.
+        rounds = 0
+        for message in reversed(messages):
+            if isinstance(message, HumanMessage):
+                break
+            if getattr(message, "tool_calls", None):
+                rounds += 1
+        if rounds >= MAX_TOOL_ROUNDS:
+            return {
+                "messages": [
+                    AIMessage(
+                        content=f"Stopped after {rounds} tool rounds. Report what worked, what failed "
+                        "and why, then ask the user how to proceed."
+                    )
+                ]
+            }
+
         bound = native
         if mcp:
             query = next((m.content for m in reversed(messages) if isinstance(m, HumanMessage)), "")
@@ -217,7 +238,7 @@ def build_graph(
     if all_tools:
         graph.add_node("permissions", _permissions)
         graph.add_node("approve", _approve)
-        graph.add_node("tools", ToolNode(all_tools))
+        graph.add_node("tools", ToolNode(all_tools, handle_tool_errors=True))
         graph.add_conditional_edges("agent", lambda s: "permissions" if s["messages"][-1].tool_calls else END)
         graph.add_conditional_edges("permissions", _route_scope, ["approve", "agent"])
         graph.add_conditional_edges("approve", _route_approval, ["tools", "agent"])

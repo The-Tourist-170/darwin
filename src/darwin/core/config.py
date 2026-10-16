@@ -36,7 +36,9 @@ class Config:
         "get_current_time,convert_time,fetch,"
         "read_file,read_text_file,read_multiple_files,list_directory,"
         "directory_tree,search_files,get_file_info,list_allowed_directories,"
-        "list_tables,describe_table",
+        "list_tables,describe_table,"
+        "browser_snapshot,browser_take_screenshot,browser_console_messages,"
+        "browser_network_requests,browser_wait_for",
     ).split(",")
 
     # Permission boundary

@@ -6,6 +6,7 @@ StdioServerParameters + stdio_client + ClientSession, managed by an AsyncExitSta
 
 import json
 import os
+import re
 import sys
 from contextlib import AsyncExitStack
 from pathlib import Path
@@ -14,6 +15,15 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from darwin.core.config import config
+
+
+ENV_REF = re.compile(r"\$\{(\w+)\}")
+
+
+def _expand_env(env: dict) -> dict:
+    """Substitute ${VAR} references from the environment and keep PATH etc. intact."""
+    resolved = {key: ENV_REF.sub(lambda m: os.environ.get(m.group(1), ""), str(value)) for key, value in env.items()}
+    return {**os.environ, **resolved}
 
 
 def _resolve_server_command(server_script_path: str) -> str:
@@ -53,7 +63,8 @@ class MCPClient:
             args = [command, *args]
             command = _resolve_server_command(command)
 
-        params = StdioServerParameters(command=command, args=args, env=server.get("env") or None)
+        env = _expand_env(server["env"]) if server.get("env") else None
+        params = StdioServerParameters(command=command, args=args, env=env)
         # Server stderr goes to ~/.darwin/mcp.log so it never clutters the chat.
         read, write = await self.exit_stack.enter_async_context(stdio_client(params, errlog=self.errlog))
         session = await self.exit_stack.enter_async_context(ClientSession(read, write))
@@ -62,15 +73,20 @@ class MCPClient:
         self.raw_tools[name] = (await session.list_tools()).tools
 
     async def connect_all(self) -> list[str]:
-        """Connect every server in the config; a failing server is skipped, not fatal."""
+        """Connect every enabled server; a failing server is skipped, not fatal."""
         servers = json.loads(Path(config.MCP_CONFIG_PATH).read_text())["mcpServers"]
-        connected = []
+        connected, disabled = [], []
         for name, server in servers.items():
+            if server.get("disabled"):
+                disabled.append(name)
+                continue
             try:
                 await self.connect(name, server)
                 connected.append(name)
             except Exception as exc:
                 print(f"[mcp] {name} failed to start: {exc}")
+        if disabled:
+            print(f"[mcp] disabled (no credentials yet): {disabled}")
         return connected
 
     def tools(self) -> list[dict]:
