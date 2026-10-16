@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "time": {
+      "command": "uvx",
+      "args": ["mcp-server-time"],
+      "env": {}
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "env": {}
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/kaneki/Dev/Darwin"],
+      "env": {}
+    },
+    "sqlite": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "mcp-server-sqlite",
+        "--with",
+        "mcp<2",
+        "mcp-server-sqlite",
+        "--db-path",
+        "/Users/kaneki/Dev/Darwin/darwin.db"
+      ],
+      "env": {}
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://darwin:darwin@localhost:5432/darwin"],
+      "env": {}
+    }
+  }
+}

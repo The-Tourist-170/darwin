@@ -1,6 +1,4 @@
-"""Input/output interception and path confinement."""
-
-from pathlib import Path
+"""Input/output interception."""
 
 from darwin.guardrails.redaction import redact
 
@@ -22,7 +20,3 @@ def sanitize_input(text: str) -> str:
 
 def sanitize_output(text: str) -> str:
     return redact(text)
-
-
-def is_safe_path(path: str, root: str) -> bool:
-    return Path(root).resolve() in Path(path).resolve().parents or Path(path).resolve() == Path(root).resolve()

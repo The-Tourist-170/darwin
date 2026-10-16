@@ -1,6 +1,8 @@
 """Central configuration for Darwin. All values come from environment variables."""
 
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,6 +24,24 @@ class Config:
 
     # Background queue
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+    # MCP subsystem
+    MCP_CONFIG_PATH: str = os.getenv("MCP_CONFIG_PATH", "mcp.json")
+    MCP_SERVER_COMMAND: str = os.getenv("MCP_SERVER_COMMAND", "")
+    TOOL_RAG_ENABLED: bool = os.getenv("TOOL_RAG_ENABLED", "true").lower() == "true"
+    TOOL_RAG_TOP_K: int = int(os.getenv("TOOL_RAG_TOP_K", "8"))
+    # MCP tools that skip HITL approval (everything else is treated as mutating)
+    READ_ONLY_MCP_TOOLS: list[str] = os.getenv(
+        "READ_ONLY_MCP_TOOLS",
+        "get_current_time,convert_time,fetch,"
+        "read_file,read_text_file,read_multiple_files,list_directory,"
+        "directory_tree,search_files,get_file_info,list_allowed_directories,"
+        "list_tables,describe_table",
+    ).split(",")
+
+    # Permission boundary
+    WORKSPACE_ROOT: str = os.getenv("WORKSPACE_ROOT", str(Path.cwd()))
+    PERMISSIONS_PATH: str = os.getenv("PERMISSIONS_PATH", "permissions.json")
 
 
 config = Config()

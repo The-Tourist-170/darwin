@@ -5,3 +5,8 @@ src/darwin/__pycache__/
 PS.md
 src/darwin/guardrails/__pycache__/
 src/darwin/tools/__pycache__/
+.commandcode/
+src/darwin/mcp/__pycache__/
+__pycache__/
+*.db
+*.db-journal

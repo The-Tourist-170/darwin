@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker ps*)",
+      "Bash(docker logs*)",
+      "Bash(docker compose ps*)"
+    ],
+    "ask": [
+      "Bash(sudo *)"
+    ],
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gcloud/**)",
+      "Read(~/.darwin/**)",
+      "Bash(sudo rm*)"
+    ]
+  }
+}
