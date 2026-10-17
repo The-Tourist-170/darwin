@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 470" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #1a1b26; }
+      .mono {
+        font-family: "JetBrains Mono", "SF Mono", "Menlo", "Monaco", "Consolas", "Liberation Mono", monospace;
+        white-space: pre;
+      }
+      .banner { fill: #7aa2f7; font-size: 19px; font-weight: 700; }
+      .meta { fill: #787c99; font-size: 13.5px; }
+      .rule { stroke: #565f89; stroke-width: 1.2; stroke-dasharray: 5, 3; }
+      .you { fill: #7aa2f7; font-size: 13.5px; font-weight: 700; }
+      .cursor { fill: #e0af68; }
+      .toolbar-bg { fill: #a9b1d6; }
+      .toolbar-meta-bg { fill: #565f89; }
+      .toolbar-cmd { fill: #1a1b26; font-size: 13px; font-weight: 700; }
+      .toolbar-sep { fill: #c0caf5; font-size: 13px; }
+      .toolbar-credit { fill: #c0caf5; font-size: 13px; }
+    </style>
+  </defs>
+
+  <!-- Terminal Background (tokyo-night) -->
+  <rect width="1200" height="470" rx="8" class="bg" />
+
+  <!-- DARWIN Wordmark -->
+  <text x="12" y="34" class="mono banner">██████╗  █████╗ ██████╗ ██╗    ██╗██╗███╗   ██╗</text>
+  <text x="12" y="54" class="mono banner">██╔══██╗██╔══██╗██╔══██╗██║    ██║██║████╗  ██║</text>
+  <text x="12" y="74" class="mono banner">██║  ██║███████║██████╔╝██║ █╗ ██║██║██╔██╗ ██║</text>
+  <text x="12" y="94" class="mono banner">██║  ██║██╔══██║██╔══██╗██║███╗██║██║██║╚██╗██║</text>
+  <text x="12" y="114" class="mono banner">██████╔╝██║  ██║██║  ██║╚███╔███╔╝██║██║ ╚████║</text>
+  <text x="12" y="134" class="mono banner">╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝</text>
+
+  <!-- Status & Metadata Header -->
+  <text x="20" y="170" class="mono meta">autonomous agentic engine · phase 3 · theme tokyo-night</text>
+  <text x="20" y="190" class="mono meta">by Ayushya Saxena · github.com/The-Tourist-170</text>
+  <text x="20" y="210" class="mono meta">servers 13 · mcp tools 135 · native tools 14 · session (new)</text>
+  <text x="20" y="246" class="mono meta">new session — it will be named from your first message (/sessions to switch)</text>
+
+  <!-- Prompt Rule ("─── you ───") -->
+  <line x1="8" y1="265" x2="582" y2="265" class="rule" />
+  <text x="588" y="269" class="mono you">you</text>
+  <line x1="618" y1="265" x2="1192" y2="265" class="rule" />
+
+  <!-- Prompt Input Line ("│ ❯ █") -->
+  <text x="8" y="291" class="mono you">│ ❯</text>
+  <rect x="38" y="276" width="8" height="18" class="cursor" />
+
+  <!-- Bottom Persistent Toolbar -->
+  <rect x="6" y="446" width="1188" height="19" class="toolbar-bg" />
+  <rect x="44" y="446" width="14" height="19" class="toolbar-meta-bg" />
+  <rect x="124" y="446" width="14" height="19" class="toolbar-meta-bg" />
+  <rect x="190" y="446" width="14" height="19" class="toolbar-meta-bg" />
+  <rect x="268" y="446" width="328" height="19" class="toolbar-meta-bg" />
+
+  <text x="8" y="460" class="mono toolbar-cmd">/new</text>
+  <text x="47" y="460" class="mono toolbar-sep">·</text>
+  <text x="60" y="460" class="mono toolbar-cmd">/sessions</text>
+  <text x="127" y="460" class="mono toolbar-sep">·</text>
+  <text x="140" y="460" class="mono toolbar-cmd">/themes</text>
+  <text x="193" y="460" class="mono toolbar-sep">·</text>
+  <text x="206" y="460" class="mono toolbar-cmd">/exit</text>
+  <text x="272" y="460" class="mono toolbar-credit">by Ayushya Saxena · github.com/The-Tourist-170</text>
+</svg>
