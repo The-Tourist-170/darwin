@@ -29,7 +29,7 @@ class Config:
     MCP_CONFIG_PATH: str = os.getenv("MCP_CONFIG_PATH", "mcp.json")
     MCP_SERVER_COMMAND: str = os.getenv("MCP_SERVER_COMMAND", "")
     TOOL_RAG_ENABLED: bool = os.getenv("TOOL_RAG_ENABLED", "true").lower() == "true"
-    TOOL_RAG_TOP_K: int = int(os.getenv("TOOL_RAG_TOP_K", "8"))
+    TOOL_RAG_TOP_K: int = int(os.getenv("TOOL_RAG_TOP_K", "12"))
     # MCP tools that skip HITL approval (everything else is treated as mutating)
     READ_ONLY_MCP_TOOLS: list[str] = os.getenv(
         "READ_ONLY_MCP_TOOLS",
@@ -38,7 +38,11 @@ class Config:
         "directory_tree,search_files,get_file_info,list_allowed_directories,"
         "list_tables,describe_table,"
         "browser_snapshot,browser_take_screenshot,browser_console_messages,"
-        "browser_network_requests,browser_wait_for",
+        "browser_network_requests,browser_wait_for,"
+        "get_file_contents,list_commits,get_commit,search_code,search_repositories,"
+        "list_branches,list_issues,get_issue,list_issue_comments,list_pull_requests,"
+        "get_pull_request,get_pull_request_files,get_pull_request_diff,"
+        "get_pull_request_comments,get_pull_request_reviews,list_releases,get_latest_release",
     ).split(",")
 
     # Permission boundary

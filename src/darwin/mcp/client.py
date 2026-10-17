@@ -20,6 +20,17 @@ from darwin.core.config import config
 ENV_REF = re.compile(r"\$\{(\w+)\}")
 
 
+def _block_text(block) -> str | None:
+    """Text from a plain text block or an embedded resource (GitHub returns files this way)."""
+    kind = getattr(block, "type", None)
+    if kind == "text":
+        return block.text
+    if kind == "resource":
+        resource = block.resource
+        return getattr(resource, "text", None) or f"[resource {getattr(resource, 'uri', '')}]"
+    return None
+
+
 def _expand_env(env: dict) -> dict:
     """Substitute ${VAR} references from the environment and keep PATH etc. intact."""
     resolved = {key: ENV_REF.sub(lambda m: os.environ.get(m.group(1), ""), str(value)) for key, value in env.items()}
@@ -103,11 +114,10 @@ class MCPClient:
         ]
 
     async def call_tool(self, server: str, tool: str, args: dict) -> str:
-        """Call a tool and return its text content."""
+        """Call a tool and return its text content (including embedded resources)."""
         result = await self.sessions[server].call_tool(tool, args)
-        return "\n".join(
-            block.text for block in result.content if getattr(block, "type", None) == "text"
-        )
+        parts = [text for text in (_block_text(block) for block in result.content) if text]
+        return "\n".join(parts)
 
     async def cleanup(self) -> None:
         await self.exit_stack.aclose()

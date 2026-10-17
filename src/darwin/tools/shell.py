@@ -1,5 +1,6 @@
 """Sandboxed shell: subprocess.run with timeout, exit-code check and truncation."""
 
+import os
 import re
 import subprocess
 import sys
@@ -11,6 +12,20 @@ from darwin.guardrails import is_banned
 
 MAX_OUTPUT_CHARS = 8_000
 SUDO_RE = re.compile(r"\bsudo\b")
+# Credentials the shell must not inherit: otherwise the agent can use them via $VAR
+# without the value ever appearing in the transcript (bypassing redaction).
+SECRET_ENV_VARS = (
+    "DARWIN_LLM_API_KEY",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "FIRECRAWL_API_KEY",
+    "EXA_API_KEY",
+    "GITHUB_PERSONAL_ACCESS_TOKEN",
+)
+
+
+def _safe_env() -> dict:
+    return {key: value for key, value in os.environ.items() if key not in SECRET_ENV_VARS}
 
 
 class RunShellArgs(BaseModel):
@@ -41,6 +56,7 @@ def run_shell(command: str, timeout: int = 30) -> str:
             capture_output=True,
             timeout=timeout,
             stdin=sys.stdin if needs_tty else None,
+            env=_safe_env(),
         )
     except subprocess.TimeoutExpired:
         return f"timed out after {timeout}s"

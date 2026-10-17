@@ -28,17 +28,26 @@ Darwin autonomously reasons, navigates file systems, executes code in sandboxed 
 | Guardrails | Deterministic prompt clamp + command gating |
 | Native tools | Sandboxed shell, file ops, document parser |
 
-## MCP Shoutout
+## MCP Subsystem
 
-Darwin stands on the shoulders of the Model Context Protocol ecosystem:
+Darwin connects to MCP servers over stdio from a single `mcp.json`, with Tool RAG masking the tool
+surface per turn. Connected today:
 
-- **@modelcontextprotocol** — filesystem, sequential-thinking, fetch, puppeteer
-- **mcp-server-docker** — container lifecycles and sandboxing
-- **mcp-server-git / @github/mcp-server** — local + remote Git operations
-- **context7-mcp** — versioned library documentation on demand
-- **firecrawl-mcp / exa-mcp-server** — neural web search and markdown scraping
-- **notion-mcp / @modelcontextprotocol/server-slack** — workspace integrations
-- **mcp-server-time / server-postgres / server-sqlite** — time and DB utilities
+| Server | Tools |
+|---|---|
+| mcp-server-time | timezone resolution, UTC sync, relative dates |
+| server-sequential-thinking | dynamic thought scratchpad for multi-step planning |
+| server-filesystem | scoped local file read/write |
+| mcp-server-sqlite | SQLite introspection and queries |
+| server-postgres | PostgreSQL query execution |
+| mcp-server-fetch | HTTP fetch and HTML-to-text extraction |
+| firecrawl-mcp | web search and clean markdown scraping |
+| exa-mcp-server | neural web search |
+| Playwright MCP | headless browser automation and visual capture |
+| GitHub MCP | repository exploration, diffs, issues and pull requests |
+
+Thanks to the Model Context Protocol ecosystem and the server authors — including `mcp-server-docker`
+for container lifecycles, `context7-mcp` for versioned library docs, and local Git tooling.
 
 ## Architecture & Flow
 

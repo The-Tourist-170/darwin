@@ -52,6 +52,20 @@
       "command": "npx",
       "args": ["-y", "exa-mcp-server"],
       "env": { "EXA_API_KEY": "${EXA_API_KEY}" }
+    },
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e",
+        "GITHUB_TOOLSETS=repos,issues,pull_requests",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}" }
     }
   }
 }
