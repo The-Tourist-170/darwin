@@ -1,119 +1,45 @@
-"""Darwin CLI: async chat loop with MCP tools, memory and HITL approval."""
+"""Darwin CLI: chat loop, MCP tools, memory and HITL approval (rich TUI)."""
 
 import asyncio
 import json
-import sys
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.types import Command
 
+from darwin import tui
 from darwin.core.config import config
 from darwin.core.llm import get_llm
-from darwin.core.memory_client import MemoryClient, get_memory_client
+from darwin.core.memory_client import get_memory_client
 from darwin.core.orchestrator import build_graph
 from darwin.mcp.adapters import to_langchain_tool
 from darwin.mcp.client import MCPClient
+from darwin.sessions import list_sessions, session_exists, new_session_id
 from darwin.tools import ALL_TOOLS
 from darwin.tools.registry import index_tools
 
-WORDMARK = r"""
-██████╗  █████╗ ██████╗ ██╗    ██╗██╗███╗   ██╗
-██╔══██╗██╔══██╗██╔══██╗██║    ██║██║████╗  ██║
-██║  ██║███████║██████╔╝██║ █╗ ██║██║██╔██╗ ██║
-██║  ██║██╔══██║██╔══██╗██║███╗██║██║██║╚██╗██║
-██████╔╝██║  ██║██║  ██║╚███╔███╔╝██║██║ ╚████║
-╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝
-"""
-
-SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-
-
-async def _spin(label: str) -> None:
-    """One-line live spinner; cancel the task when boot work finishes."""
-    index = 0
-    while True:
-        sys.stdout.write(f"\r  {SPINNER_FRAMES[index % len(SPINNER_FRAMES)]} {label}")
-        sys.stdout.flush()
-        index += 1
-        await asyncio.sleep(0.1)
-
-
-def _clear_spinner() -> None:
-    sys.stdout.write("\r\033[K")
-    sys.stdout.flush()
-
-
-def _banner(connected: list[str], mcp_tools: list) -> None:
-    """Wordmark + compact status; interactive terminals only."""
-    if not sys.stdout.isatty():
-        print(f"[mcp] servers: {connected or 'none'}")
-        print(f"[mcp] tools: {len(mcp_tools)}")
-        return
-    print(WORDMARK)
-    print(f"        autonomous agentic engine · phase 3")
-    print(f"  servers {len(connected)} · mcp tools {len(mcp_tools)} · native tools {len(ALL_TOOLS)}")
-    print(f"  {', '.join(connected) if connected else 'no MCP servers'}\n")
-
-
-async def _ask(prompt: str) -> str | None:
-    """Read a line from stdin; None on EOF (e.g. piped input ran out)."""
-    try:
-        return (await asyncio.to_thread(input, prompt)).strip()
-    except EOFError:
-        return None
-
-
-def _clip(text: str, limit: int = 240) -> str:
-    flat = " ".join(str(text).split())
-    return flat[:limit] + ("…" if len(flat) > limit else "")
-
 
 def _trace(message) -> None:
-    """Print tool activity as concise one-liners."""
     for call in getattr(message, "tool_calls", None) or []:
-        print(f"  -> {call['name']} {_clip(json.dumps(call['args'], ensure_ascii=False))}")
+        tui.trace_call(call["name"], call["args"])
     if isinstance(message, ToolMessage):
-        print(f"  <- {getattr(message, 'name', 'tool')}: {_clip(message.content)}")
-
-
-async def _ask_escalation(payload: dict) -> dict:
-    """Render the JIT authorization prompt and return the resume payload."""
-    targets = payload.get("targets") or []
-    mode = payload.get("mode", "read-only")
-    print(f"\n  !! out-of-workspace access: {payload.get('tool')}")
-    for target in targets:
-        print(f"     target : {target}  ({mode})")
-    if payload.get("intent"):
-        print(f"     intent : {_clip(payload['intent'], 160)}")
-    print("     [1] allow once   [2] allow for session   [3] deny")
-    choice = await _ask("     choice: ")
-    if choice == "1":
-        return {"approved": True, "scope": "once"}
-    if choice == "2":
-        return {"approved": True, "scope": "session"}
-    print("     denied")
-    return {"approved": False}
+        tui.trace_result(getattr(message, "name", "tool"), message.content)
 
 
 async def _settle(graph, thread_config: dict) -> None:
-    """Discard interrupts left pending by an earlier interrupted run.
-
-    Without this, a thread paused at an unanswered approval hijacks the next turn:
-    the graph resumes the stale task and the new user message is never processed.
-    """
+    """Discard interrupts left pending by an earlier interrupted run."""
     while True:
         state = await graph.aget_state(thread_config)
         if not (state.tasks and state.tasks[0].interrupts):
             return
         payload = state.tasks[0].interrupts[0].value
         resume = {"approved": False} if isinstance(payload, dict) else False
-        print("  [discarded a pending approval from an interrupted earlier turn]")
+        tui.notice("discarded a pending approval from an interrupted earlier turn")
         await graph.ainvoke(Command(resume=resume), thread_config)
 
 
 async def _run(graph, payload: dict, thread_config: dict) -> dict:
-    """Stream one turn: trace tool activity, gate scope and mutations on approval."""
+    """Stream one turn: trace tools, prompt for approvals, handle escalations."""
     while True:
         interrupted = False
         async for chunk in graph.astream(payload, thread_config, stream_mode="updates"):
@@ -122,12 +48,10 @@ async def _run(graph, payload: dict, thread_config: dict) -> dict:
                     interrupted = True
                     request = update[0].value
                     if isinstance(request, dict) and request.get("type") == "escalation":
-                        payload = Command(resume=await _ask_escalation(request))
+                        payload = Command(resume=await tui.escalation_async(request))
                     else:
-                        calls = ", ".join(c["name"] for c in request)
-                        print(f"  !! approval required: {calls}")
-                        answer = await _ask("     approve? (y/n): ")
-                        payload = Command(resume=(answer or "n").lower() == "y")
+                        names = ", ".join(c["name"] for c in request)
+                        payload = Command(resume=await tui.approval_async(names))
                     break
                 for message in (update or {}).get("messages", []):
                     _trace(message)
@@ -137,41 +61,64 @@ async def _run(graph, payload: dict, thread_config: dict) -> dict:
     return {"messages": list(state.values["messages"])}
 
 
-async def _chat(graph, memory: MemoryClient, saver, mcp_tools: list) -> None:
-    thread = {"id": "default"}
-    print("Darwin — type 'exit' to quit ('/new' starts a fresh session).")
+async def _chat(graph, memory, thread: dict) -> None:
+    tui.notice("new session — it will be named from your first message (/sessions to switch)")
     while True:
-        user_input = await _ask("\nyou > ")
-        if user_input is None or user_input.lower() in {"exit", "quit"}:
+        user_input = await tui.prompt_async()
+        if user_input is None or user_input.lower() in {"exit", "quit", "/exit", "/quit"}:
             break
         if not user_input:
             continue
-        if user_input.lower() == "/new":
-            thread["id"] = f"session-{int(asyncio.get_event_loop().time())}"
-            print(f"  [new session: {thread['id']}]")
+        if user_input == "/new":
+            thread["id"] = None
+            tui.notice("new session — it will be named from your first message")
+            continue
+        if user_input.startswith("/themes") or user_input.strip() == "/theme":
+            chosen = await tui.pick_theme(tui.current_theme)
+            if chosen:
+                tui.notice(f"theme: {tui.set_theme(chosen)}")
+            continue
+        if user_input.startswith("/theme"):
+            arg = user_input[len("/theme"):].strip()
+            tui.notice(f"theme: {tui.set_theme(arg)}")
+            continue
+        if user_input.startswith("/sessions"):
+            chosen = await tui.pick_session(list_sessions(), thread["id"] or "")
+            if chosen:
+                thread["id"] = chosen
+                tui.notice(f"switched to session {chosen}")
+            continue
+        if user_input.startswith("/session"):
+            arg = user_input[len("/session"):].strip()
+            if not arg:
+                tui.sessions_table(list_sessions())
+            elif session_exists(arg):
+                thread["id"] = arg
+                tui.notice(f"switched to session {arg}")
+            else:
+                tui.notice(f"no such session: {arg}")
             continue
 
+        if thread["id"] is None:
+            thread["id"] = new_session_id(user_input)
+            tui.notice(f"session: {thread['id']}")
+        thread_config = {"configurable": {"thread_id": thread["id"]}}
         try:
             memories = [m["memory"] for m in memory.recall(user_input)]
         except Exception:
             memories = []
         context = f"\n\nRelevant long-term memories:\n{json.dumps(memories)}" if memories else ""
-        thread_config = {"configurable": {"thread_id": thread["id"]}}
-        await _settle(graph, thread_config)
 
+        await _settle(graph, thread_config)
         result = await _run(
             graph,
             {"messages": [HumanMessage(content=user_input)], "context": context},
             thread_config,
         )
-        reply = result["messages"][-1].content
-        print(f"\ndarwin > {reply}")
+        reply = str(result["messages"][-1].content)
+        tui.reply(reply)
         if not reply.strip():
-            print(
-                "  [empty reply — this session's history may be corrupt. "
-                "Type /new to start a fresh session.]"
-            )
-
+            tui.notice("empty reply — the session history may be corrupt; use /new")
         try:
             memory.add(user_input, reply)
         except Exception:
@@ -180,21 +127,22 @@ async def _chat(graph, memory: MemoryClient, saver, mcp_tools: list) -> None:
 
 async def main() -> None:
     mcp = MCPClient()
-    spinner = asyncio.create_task(_spin("booting Darwin…"))
+    status = tui.status("booting Darwin…")
+    status.start()
     try:
         connected = await mcp.connect_all()
         mcp_tools = [to_langchain_tool(mcp, meta) for meta in mcp.tools()]
         index_tools(mcp_tools)
     finally:
-        spinner.cancel()
-        _clear_spinner()
+        status.stop()
 
+    thread = {"id": None}
     try:
-        _banner(connected, mcp_tools)
+        tui.banner(connected, len(mcp_tools), len(ALL_TOOLS), thread["id"] or "(new)")
         async with AsyncPostgresSaver.from_conn_string(config.POSTGRES_URL) as saver:
             await saver.setup()
             graph = build_graph(get_llm(), saver, tools=ALL_TOOLS, mcp_tools=mcp_tools)
-            await _chat(graph, get_memory_client(), saver, mcp_tools)
+            await _chat(graph, get_memory_client(), thread)
     finally:
         await mcp.cleanup()
 

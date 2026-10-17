@@ -165,20 +165,21 @@ def _route_scope(state: AgentState) -> str:
 
 
 def _wire_safe(message: BaseMessage) -> BaseMessage:
-    """Guarantee non-null, non-list content on the wire.
+    """Return a copy whose content is safe for strict OpenAI-compatible proxies.
 
-    Strict OpenAI-compatible proxies reject null/empty content (langchain-openai turns "" into
-    None on tool-call turns, and empty user messages are empty strings).
+    Only null/blank content is rewritten (langchain-openai turns "" into None on tool-call turns,
+    and strict proxies reject null). List content blocks are flattened to their text because Darwin
+    is a text-only agent; a message with no text blocks is marked rather than silently emptied.
     """
     content = message.content
     if isinstance(content, list):
-        content = " ".join(
+        text = " ".join(
             block.get("text", "") if isinstance(block, dict) else str(block) for block in content
-        )
+        ).strip()
+        content = text or "[non-text content]"
     if content is None or not str(content).strip():
         content = " "
-    message.content = content
-    return message
+    return message.model_copy(update={"content": content})
 
 
 def _sanitize_history(state: AgentState) -> list[BaseMessage]:
@@ -199,14 +200,15 @@ def _sanitize_history(state: AgentState) -> list[BaseMessage]:
                     raise
                 cleaned.append(msg)
         elif isinstance(msg, ToolMessage):
-            content = sanitize_output(_wire_safe(msg).content) or " "
+            content = sanitize_output(str(_wire_safe(msg).content)) or " "
             cleaned.append(ToolMessage(content=content, tool_call_id=msg.tool_call_id, id=msg.id))
         elif isinstance(msg, AIMessage):
-            msg.content = sanitize_output(_wire_safe(msg).content)
-            cleaned.append(msg)
+            safe = _wire_safe(msg)
+            safe.content = sanitize_output(safe.content)
+            cleaned.append(safe)
         else:
             cleaned.append(_wire_safe(msg))
-    return [_wire_safe(m) for m in cleaned]
+    return cleaned
 
 
 def build_graph(
@@ -249,7 +251,8 @@ def build_graph(
         model = llm.bind_tools(bound) if bound else llm
 
         reply = await model.ainvoke([SystemMessage(content=SYSTEM_PROMPT + state.get("context", "")), *messages])
-        reply.content = sanitize_output(_wire_safe(reply).content)
+        reply = _wire_safe(reply)
+        reply.content = sanitize_output(reply.content)
         return {"messages": [reply]}
 
     graph = StateGraph(AgentState)

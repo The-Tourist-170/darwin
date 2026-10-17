@@ -69,7 +69,7 @@
     },
     "git": {
       "command": "uvx",
-      "args": ["mcp-server-git", "--repository", "/Users/kaneki/Dev/Darwin"],
+      "args": ["mcp-server-git", "--repository", "."],
       "env": {}
     },
     "docker": {

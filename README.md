@@ -116,6 +116,30 @@ uv run darwin
 > **Resource tip:** local Neo4j needs ~1.5–2 GB RAM (JVM). Point `DARWIN_NEO4J_URI` at a free
 > [Neo4j Aura](https://neo4j.com/cloud/aura/) instance instead (see `.env.example`) if you'd rather offload it.
 
+## CLI
+
+Darwin opens a rich terminal UI (boxed prompt, completion, tool traces, markdown replies). Sessions are
+**named from the first message** (e.g. `git-status-repo`), so they read as a conversation history.
+
+| Command | Action |
+|---|---|
+| `/new` | start a fresh session |
+| `/sessions` | arrow-key picker (↑/↓) to switch sessions |
+| `/session` | print the sessions table |
+| `/session <id>` | switch directly to a session |
+| `/themes` | arrow-key theme picker (↑/↓) |
+| `/theme <name>` | switch theme directly |
+| `/exit` | quit |
+
+Typing `/` opens the command menu; ↑/↓ selects, Enter completes.
+
+The input bar is a real prompt (`prompt_toolkit`) with history and a persistent bottom toolbar showing
+the commands and credits.
+
+Themes: `tokyo-night` (default), `dracula`, `catppuccin`, `nord`, `gruvbox` — or set
+`DARWIN_THEME` in `.env`. Approvals are `y/n`; out-of-workspace access uses `1/2/3` (once / session /
+deny). Built by **Ayushya Saxena** · [The-Tourist-170](https://github.com/The-Tourist-170).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

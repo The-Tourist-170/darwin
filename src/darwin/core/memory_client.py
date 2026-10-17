@@ -11,6 +11,8 @@ from darwin.core.config import config
 for _name in ("huggingface_hub", "transformers", "sentence_transformers", "urllib3"):
     logging.getLogger(_name).setLevel(logging.ERROR)
 logging.getLogger("posthog").disabled = True
+# Memory writes are best-effort; mem0 logs loud tracebacks when the provider returns non-JSON.
+logging.getLogger("mem0").setLevel(logging.CRITICAL)
 
 
 def _build_config() -> dict:
