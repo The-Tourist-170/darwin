@@ -9,7 +9,7 @@ from langgraph.types import Command
 
 from darwin.core.config import config
 from darwin.core.llm import get_llm
-from darwin.core.memory_client import MemoryClient
+from darwin.core.memory_client import MemoryClient, get_memory_client
 from darwin.core.orchestrator import build_graph
 from darwin.mcp.adapters import to_langchain_tool
 from darwin.mcp.client import MCPClient
@@ -98,7 +98,7 @@ async def _run(graph, payload: dict, thread_config: dict) -> dict:
     return {"messages": list(state.values["messages"])}
 
 
-async def _chat(graph, memory: MemoryClient) -> None:
+async def _chat(graph, memory: MemoryClient, saver, mcp_tools: list) -> None:
     thread = {"id": "default"}
     print("Darwin — type 'exit' to quit ('/new' starts a fresh session).")
     while True:
@@ -143,13 +143,16 @@ async def main() -> None:
         connected = await mcp.connect_all()
         mcp_tools = [to_langchain_tool(mcp, meta) for meta in mcp.tools()]
         index_tools(mcp_tools)
+        counts = {}
+        for name in connected:
+            counts[name] = sum(1 for meta in mcp.tools() if meta["server"] == name)
         print(f"[mcp] servers: {connected or 'none'}")
-        print(f"[mcp] tools: {[t.name for t in mcp_tools]}")
+        print(f"[mcp] tools: {sum(counts.values())} total — {counts}")
 
         async with AsyncPostgresSaver.from_conn_string(config.POSTGRES_URL) as saver:
             await saver.setup()
             graph = build_graph(get_llm(), saver, tools=ALL_TOOLS, mcp_tools=mcp_tools)
-            await _chat(graph, MemoryClient())
+            await _chat(graph, memory := get_memory_client(), saver, mcp_tools)
     finally:
         await mcp.cleanup()
 

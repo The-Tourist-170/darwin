@@ -10,4 +10,5 @@ src/darwin/mcp/__pycache__/
 __pycache__/
 *.db
 *.db-journal
+src/darwin/tools/generated/
 .playwright-mcp/

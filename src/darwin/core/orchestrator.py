@@ -17,6 +17,7 @@ from langgraph.prebuilt import ToolNode
 from langgraph.types import interrupt
 
 from darwin.core.config import config
+from darwin.core.notify import notify
 from darwin.guardrails import sanitize_input, sanitize_output
 from darwin.guardrails.permissions import decide, kind_of
 from darwin.guardrails.scope import scope
@@ -24,13 +25,14 @@ from darwin.tools.registry import select_tools
 
 MAX_BUFFER_MESSAGES = 50
 MAX_TOOL_ROUNDS = 12
-NATIVE_MUTATING = {"write_file", "run_shell"}
+NATIVE_MUTATING = {"write_file", "run_shell", "email_send"}
 SYSTEM_PROMPT = (
     "You are Darwin, an autonomous general-purpose agent. "
     "Always think through a plan before executing any work. "
     "Prefer dedicated tools over the shell. MCP tools are named server__tool: use github__* for "
     "repositories, files, issues and pull requests (not curl/gh/git in the shell); fetch/firecrawl/exa/"
-    "browser_* for web work; filesystem__*/sqlite__*/postgres__* for files and databases. "
+    "browser_* for web work; filesystem__*/sqlite__*/postgres__* for files and databases; "
+    "email_* and memory_* tools plus notify_user are also available. "
     "Withhold secrets: never print, echo or pass credentials found in the environment or .env."
 )
 
@@ -68,6 +70,7 @@ def _approve(state: AgentState) -> AgentState:
     if not mutating:
         return {"approved": True}
     request = [{"name": c["name"], "args": c["args"]} for c in mutating]
+    notify("Darwin needs approval", ", ".join(sorted({c["name"] for c in calls})))
     if interrupt(request) is True:
         return {"approved": True}
     return {
@@ -121,6 +124,7 @@ def _permissions(state: AgentState) -> AgentState:
         return {"approved": True}
 
     intent = _intent(state)
+    notify("Darwin needs out-of-workspace access", calls[0]["name"])
     answer = interrupt(
         {
             "type": "escalation",

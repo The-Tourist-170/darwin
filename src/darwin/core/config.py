@@ -49,5 +49,13 @@ class Config:
     WORKSPACE_ROOT: str = os.getenv("WORKSPACE_ROOT", str(Path.cwd()))
     PERMISSIONS_PATH: str = os.getenv("PERMISSIONS_PATH", "permissions.json")
 
+    # Email (optional; without credentials the email tools report disabled)
+    EMAIL_ADDRESS: str = os.getenv("EMAIL_ADDRESS", "")
+    EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    IMAP_HOST: str = os.getenv("IMAP_HOST", "")
+    IMAP_PORT: int = int(os.getenv("IMAP_PORT", "993"))
+
 
 config = Config()

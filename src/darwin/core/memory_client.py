@@ -1,17 +1,30 @@
 """Long-term memory via mem0: Qdrant vector store + Neo4j graph store, one client."""
 
+import logging
+from pathlib import Path
+
 from mem0 import Memory
 
 from darwin.core.config import config
 
+# mem0 raises these loggers back to WARNING at import; set them quiet here, after that.
+for _name in ("huggingface_hub", "transformers", "sentence_transformers", "urllib3"):
+    logging.getLogger(_name).setLevel(logging.ERROR)
+logging.getLogger("posthog").disabled = True
+
 
 def _build_config() -> dict:
+    embedder = {
+        "provider": "huggingface",
+        "config": {"model": "sentence-transformers/all-MiniLM-L6-v2"},
+    }
+    # If the model is already cached, never contact the Hub (no prompt/download noise).
+    cached = Path.home() / ".cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2"
+    if cached.exists():
+        embedder["config"]["model_kwargs"] = {"local_files_only": True}
     return {
         "version": "v1.1",
-        "embedder": {
-            "provider": "huggingface",
-            "config": {"model": "sentence-transformers/all-MiniLM-L6-v2"},
-        },
+        "embedder": embedder,
         "llm": {
             "provider": "openai",
             "config": {
@@ -38,6 +51,17 @@ def _build_config() -> dict:
             },
         },
     }
+
+
+_shared: "MemoryClient | None" = None
+
+
+def get_memory_client() -> "MemoryClient":
+    """One process-wide client, so expensive embedder models load once."""
+    global _shared
+    if _shared is None:
+        _shared = MemoryClient()
+    return _shared
 
 
 class MemoryClient:

@@ -49,6 +49,19 @@ surface per turn. Connected today:
 Thanks to the Model Context Protocol ecosystem and the server authors — including `mcp-server-docker`
 for container lifecycles, `context7-mcp` for versioned library docs, and local Git tooling.
 
+## Category B — Custom Tools (built in-house)
+
+| Tool | What it does |
+|---|---|
+| `run_shell` | sandboxed `subprocess.run` with timeout, exit-code check, output truncation, banned-command policy, secret-scrubbed environment |
+| `parse_document` | markitdown → Markdown for PDFs, Office docs and spreadsheets |
+| `email_send` / `email_read` | stdlib IMAP/SMTP; outbound leak protection blocks bodies containing secrets |
+| `notify_user` | desktop notification via `osascript`, no approval needed |
+| `memory_recall` / `memory_save` | episodic memory via mem0 (Qdrant + Neo4j) |
+
+Every mutating tool gates on a LangGraph `interrupt()` for human approval, with a desktop
+notification so the prompt is visible even when the user isn't looking at the terminal.
+
 ## Architecture & Flow
 
 ```mermaid
