@@ -27,6 +27,7 @@ Darwin autonomously reasons, navigates file systems, executes code in sandboxed 
 | Validation | Pydantic structured outputs |
 | Guardrails | Deterministic prompt clamp + command gating |
 | Native tools | Sandboxed shell, file ops, document parser |
+| CLI | rich + prompt_toolkit (boxed prompt, themes, session picker) |
 
 ## MCP Subsystem
 
@@ -98,23 +99,41 @@ graph TD;
     linkStyle 12 stroke:#d35400,stroke-width:3px;
 ```
 
+## Repo Layout
+
+```
+src/darwin/
+├── core/        # orchestrator (StateGraph), config, LLM client, mem0 memory, queues, notify
+├── guardrails/  # Pydantic schemas, command policy, redaction, permissions, session scope
+├── mcp/         # in-house MCP client (stdio), LangChain bridge, server check CLI
+├── tools/       # shell, filesystem, documents, email, memory, notify_user
+├── tui.py       # banner, boxed prompt, themes, pickers, traces
+├── sessions.py  # session naming + listing from the checkpointer
+└── main.py      # chat loop
+```
+
 ## Build Phases
 
 - **Phase 1 — Core Reasoning Engine:** StateGraph, Postgres checkpointing, mem0 memory (Qdrant + Neo4j). ✅
 - **Phase 2 — Native Tooling:** Sandboxed shell, file operations, document parser, Pydantic guardrails. ✅
 - **Phase 3 — MCP & Routing:** 13 MCP servers, Tool RAG, two-tier permissions. ✅
-- **Phase 4 — DevOps:** Docker/Lima sandboxing, Git/GitHub MCP.
+- **Phase 4 — DevOps:** Docker/Lima multi-runtime sandboxing, container lifecycles.
 
 ## Getting Started
 
+Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), and Docker (for the service stack).
+
 ```bash
-cp .env.example .env          # fill API key, model, base url + neo4j password only
+cp .env.example .env          # set model base URL / API key; optional keys below
 docker-compose up -d          # Postgres, Qdrant, Neo4j, Valkey — pre-credentialed
 uv run darwin
 ```
 
-> **Resource tip:** local Neo4j needs ~1.5–2 GB RAM (JVM). Point `DARWIN_NEO4J_URI` at a free
+> **Resource tip:** local Neo4j needs ~1.5–2 GB RAM (JVM). Point `NEO4J_URI` at a free
 > [Neo4j Aura](https://neo4j.com/cloud/aura/) instance instead (see `.env.example`) if you'd rather offload it.
+
+Optional credentials (`.env.example` documents each): `FIRECRAWL_API_KEY`, `EXA_API_KEY`,
+`CONTEXT7_API_KEY`, `GITHUB_PERSONAL_ACCESS_TOKEN`, and the `EMAIL_*` block.
 
 ## CLI
 
