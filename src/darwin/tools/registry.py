@@ -21,7 +21,8 @@ _model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
 
 def _client() -> QdrantClient:
-    client = QdrantClient(url=config.QDRANT_URL)
+    # The version probe warns when the server is unreachable; skip it (harmless noise).
+    client = QdrantClient(url=config.QDRANT_URL, check_compatibility=False)
     if not client.collection_exists(COLLECTION):
         client.create_collection(
             COLLECTION, vectors_config=VectorParams(size=EMBED_DIM, distance=Distance.COSINE)

@@ -8,9 +8,8 @@ import sys
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
-from darwin.guardrails import is_banned
+from darwin.guardrails import MAX_OUTPUT_CHARS, is_banned
 
-MAX_OUTPUT_CHARS = 8_000
 SUDO_RE = re.compile(r"\bsudo\b")
 # Credentials the shell must not inherit: otherwise the agent can use them via $VAR
 # without the value ever appearing in the transcript (bypassing redaction).

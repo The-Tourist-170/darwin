@@ -15,7 +15,7 @@ from pathlib import Path
 from darwin.core.config import config
 from darwin.guardrails.scope import scope
 
-NATIVE_READ_TOOLS = {"read_file", "list_directory", "parse_document"}
+NATIVE_READ_TOOLS = {"read_file", "list_directory", "parse_document", "sandbox_containers"}
 PATH_KEYS = ("path", "file_path", "filepath", "directory", "paths", "target")
 PATH_RE = re.compile(r"(?<![\w.%+-])(~/[\w./@+-]+|/[\w./@+-]+)")
 IGNORED_PATHS = {"/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty", "/dev/random", "/dev/urandom"}

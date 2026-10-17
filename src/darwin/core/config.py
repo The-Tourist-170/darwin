@@ -52,6 +52,14 @@ class Config:
     WORKSPACE_ROOT: str = os.getenv("WORKSPACE_ROOT", str(Path.cwd()))
     PERMISSIONS_PATH: str = os.getenv("PERMISSIONS_PATH", "permissions.json")
 
+    # Sandbox (execution isolation; docker is the default backend)
+    SANDBOX_BACKEND: str = os.getenv("SANDBOX_BACKEND", "auto")  # auto | docker | lima
+    SANDBOX_MEMORY: str = os.getenv("SANDBOX_MEMORY", "1g")
+    SANDBOX_CPUS: str = os.getenv("SANDBOX_CPUS", "1")
+    SANDBOX_PIDS_LIMIT: int = int(os.getenv("SANDBOX_PIDS_LIMIT", "256"))
+    SANDBOX_TIMEOUT: int = int(os.getenv("SANDBOX_TIMEOUT", "120"))
+    SANDBOX_VM_NAME: str = os.getenv("SANDBOX_VM_NAME", "darwin-sandbox")
+
     # Email (optional; without credentials the email tools report disabled)
     EMAIL_ADDRESS: str = os.getenv("EMAIL_ADDRESS", "")
     EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")

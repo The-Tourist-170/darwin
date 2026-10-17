@@ -25,7 +25,7 @@ from darwin.tools.registry import select_tools
 
 MAX_BUFFER_MESSAGES = 50
 MAX_TOOL_ROUNDS = 12
-NATIVE_MUTATING = {"write_file", "run_shell", "email_send"}
+NATIVE_MUTATING = {"write_file", "run_shell", "email_send", "run_sandboxed", "run_code", "sandbox_stop"}
 SYSTEM_PROMPT = (
     "You are Darwin, an autonomous general-purpose agent. "
     "Always think through a plan before executing any work. "
@@ -33,6 +33,8 @@ SYSTEM_PROMPT = (
     "repositories, files, issues and pull requests (not curl/gh/git in the shell); fetch/firecrawl/exa/"
     "browser_* for web work; filesystem__*/sqlite__*/postgres__* for files and databases; "
     "email_* and memory_* tools plus notify_user are also available. "
+    "For untrusted or multi-language code, prefer run_sandboxed/run_code (isolated containers) over "
+    "run_shell; sandbox runs see the workspace read-only with no network unless you ask for it. "
     "Withhold secrets: never print, echo or pass credentials found in the environment or .env."
 )
 

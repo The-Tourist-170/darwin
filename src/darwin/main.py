@@ -104,7 +104,7 @@ async def _chat(graph, memory, thread: dict) -> None:
             tui.notice(f"session: {thread['id']}")
         thread_config = {"configurable": {"thread_id": thread["id"]}}
         try:
-            memories = [m["memory"] for m in memory.recall(user_input)]
+            memories = [m["memory"] for m in memory.recall(user_input)] if memory else []
         except Exception:
             memories = []
         context = f"\n\nRelevant long-term memories:\n{json.dumps(memories)}" if memories else ""
@@ -120,7 +120,8 @@ async def _chat(graph, memory, thread: dict) -> None:
         if not reply.strip():
             tui.notice("empty reply — the session history may be corrupt; use /new")
         try:
-            memory.add(user_input, reply)
+            if memory:
+                memory.add(user_input, reply)
         except Exception:
             pass
 
@@ -132,9 +133,19 @@ async def main() -> None:
     try:
         connected = await mcp.connect_all()
         mcp_tools = [to_langchain_tool(mcp, meta) for meta in mcp.tools()]
-        index_tools(mcp_tools)
+        # Tool RAG is a mitigation, not a dependency: a down Qdrant must not block boot.
+        try:
+            index_tools(mcp_tools)
+        except Exception as exc:
+            tui.notice(f"tool RAG unavailable ({type(exc).__name__}); binding tools by name only")
     finally:
         status.stop()
+
+    memory = None
+    try:
+        memory = get_memory_client()
+    except Exception as exc:
+        tui.notice(f"long-term memory unavailable ({type(exc).__name__}); continuing without it")
 
     thread = {"id": None}
     try:
@@ -142,7 +153,7 @@ async def main() -> None:
         async with AsyncPostgresSaver.from_conn_string(config.POSTGRES_URL) as saver:
             await saver.setup()
             graph = build_graph(get_llm(), saver, tools=ALL_TOOLS, mcp_tools=mcp_tools)
-            await _chat(graph, get_memory_client(), thread)
+            await _chat(graph, memory, thread)
     finally:
         await mcp.cleanup()
 

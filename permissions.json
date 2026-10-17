@@ -3,7 +3,9 @@
     "allow": [
       "Bash(docker ps*)",
       "Bash(docker logs*)",
-      "Bash(docker compose ps*)"
+      "Bash(docker compose ps*)",
+      "Bash(docker images*)",
+      "Bash(docker inspect*)"
     ],
     "ask": [
       "Bash(sudo *)"

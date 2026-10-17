@@ -27,6 +27,7 @@ Darwin autonomously reasons, navigates file systems, executes code in sandboxed 
 | Validation | Pydantic structured outputs |
 | Guardrails | Deterministic prompt clamp + command gating |
 | Native tools | Sandboxed shell, file ops, document parser |
+| Execution sandbox | Docker (default) + Lima (opt-in) multi-runtime containers |
 | CLI | rich + prompt_toolkit (boxed prompt, themes, session picker) |
 
 ## MCP Subsystem
@@ -51,7 +52,46 @@ surface per turn. Connected today:
 | context7-mcp | versioned library documentation on demand |
 
 All servers speak MCP over **stdio** (started from `mcp.json`); HTTP/SSE transports are not wired yet.
-Tools are namespaced `server__tool`, and only the most relevant subset is bound per turn.
+Tools are namespaced `server__tool`, and only the most relevant subset is bound per turn. A server whose
+credentials are missing or whose daemon is down is skipped with a warning, so boot never blocks on it.
+
+## Execution Sandbox
+
+Phase 4 adds a sandbox Darwin controls itself, so untrusted or multi-language code runs in a locked-down
+container instead of on the host. It talks to the `docker` CLI directly — no extra dependencies — and
+falls back to a Lima VM when Docker is unavailable.
+
+| Language | Image | Language | Image |
+|---|---|---|---|
+| `bash` | `alpine:3.20` | `go` | `golang:1.23-alpine` |
+| `python` | `python:3.12-slim` | `rust` | `rust:1.82-slim` |
+| `node` | `node:22-slim` | `cpp` | `gcc:14` |
+| `bun` | `oven/bun:1` | `java` | `eclipse-temurin:21-jdk` |
+
+| Tool | What it does |
+|---|---|
+| `run_sandboxed` | run a command in a language container; workspace read-only and no network by default |
+| `run_code` | drop a snippet in and execute it via a per-language runner |
+| `sandbox_containers` | list Darwin-owned sandbox containers (read-only, no approval) |
+| `sandbox_stop` | stop + remove a sandbox container Darwin owns |
+
+**Isolation defaults:** the workspace is the only mount (`:ro`), `--network=none`, `--cap-drop=ALL`,
+`no-new-privileges`, read-only rootfs with a capped `tmpfs /tmp`, non-root user, and pids/memory/cpu
+caps. Host environment is never forwarded. The image list is a hardcoded allowlist and every container
+is labelled `darwin.sandbox=1`, so the agent supplies only a language key and a command — never an
+image, a mount, or a flag. Writable and network runs are explicit opt-ins, and every mutating sandbox
+call goes through the same `y/n` approval gate as the rest of Darwin.
+
+Verify a backend without the agent:
+
+```bash
+python -m darwin.sandbox.check                 # backends detected + image allowlist
+python -m darwin.sandbox.check python          # run a snippet in python:3.12-slim
+python -m darwin.sandbox.check lima            # only if you opted into the VM
+```
+
+`SANDBOX_BACKEND` picks the target (`auto` | `docker` | `lima`); the Lima VM is never auto-started —
+it downloads on first explicit use, keeping the local footprint honest.
 
 ## Category B — Custom Tools (built in-house)
 
@@ -83,6 +123,10 @@ graph TD;
     Memory --> Qdrant[Qdrant vector store];
     Memory --> Neo4j[Neo4j graph store];
     Valkey[Valkey and RQ workers] --> Agent;
+    Tools --> Sandbox[Docker and Lima sandbox];
+    Sandbox --> Tools;
+
+    classDef sandbox fill:#ff8a3d,stroke:#d35400,color:#1a1a1a,stroke-width:2px;
 
     linkStyle 0 stroke:#e74c3c,stroke-width:3px;
     linkStyle 1 stroke:#f39c12,stroke-width:3px;
@@ -97,6 +141,9 @@ graph TD;
     linkStyle 10 stroke:#8e44ad,stroke-width:3px;
     linkStyle 11 stroke:#16a085,stroke-width:3px;
     linkStyle 12 stroke:#d35400,stroke-width:3px;
+    linkStyle 13 stroke:#ff8a3d,stroke-width:3px;
+    linkStyle 14 stroke:#ff8a3d,stroke-width:3px;
+    class Sandbox sandbox;
 ```
 
 ## Repo Layout
@@ -106,7 +153,8 @@ src/darwin/
 ├── core/        # orchestrator (StateGraph), config, LLM client, mem0 memory, queues, notify
 ├── guardrails/  # Pydantic schemas, command policy, redaction, permissions, session scope
 ├── mcp/         # in-house MCP client (stdio), LangChain bridge, server check CLI
-├── tools/       # shell, filesystem, documents, email, memory, notify_user
+├── sandbox/     # Docker + Lima execution backends and the sandbox check CLI
+├── tools/       # shell, sandbox, filesystem, documents, email, memory, notify_user
 ├── tui.py       # banner, boxed prompt, themes, pickers, traces
 ├── sessions.py  # session naming + listing from the checkpointer
 └── main.py      # chat loop
@@ -117,11 +165,12 @@ src/darwin/
 - **Phase 1 — Core Reasoning Engine:** StateGraph, Postgres checkpointing, mem0 memory (Qdrant + Neo4j). ✅
 - **Phase 2 — Native Tooling:** Sandboxed shell, file operations, document parser, Pydantic guardrails. ✅
 - **Phase 3 — MCP & Routing:** 13 MCP servers, Tool RAG, two-tier permissions. ✅
-- **Phase 4 — DevOps:** Docker/Lima multi-runtime sandboxing, container lifecycles.
+- **Phase 4 — DevOps:** Docker/Lima multi-runtime sandbox, container lifecycles, git/GitHub MCP. ✅
 
 ## Getting Started
 
-Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), and Docker (for the service stack).
+Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), and Docker (for the service stack and the
+execution sandbox). [Lima](https://lima-vm.io/) is optional, for the VM fallback.
 
 ```bash
 cp .env.example .env          # set model base URL / API key; optional keys below

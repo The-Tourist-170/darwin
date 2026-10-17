@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from mem0 import Memory
+from qdrant_client import QdrantClient
 
 from darwin.core.config import config
 
@@ -46,8 +47,7 @@ def _build_config() -> dict:
         "vector_store": {
             "provider": "qdrant",
             "config": {
-                "host": "localhost",
-                "port": 6333,
+                "client": QdrantClient(url=config.QDRANT_URL, check_compatibility=False),
                 "collection_name": "memories",
                 "embedding_model_dims": 384,
             },
