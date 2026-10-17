@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import sys
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -15,6 +16,44 @@ from darwin.mcp.adapters import to_langchain_tool
 from darwin.mcp.client import MCPClient
 from darwin.tools import ALL_TOOLS
 from darwin.tools.registry import index_tools
+
+WORDMARK = r"""
+██████╗  █████╗ ██████╗ ██╗    ██╗██╗███╗   ██╗
+██╔══██╗██╔══██╗██╔══██╗██║    ██║██║████╗  ██║
+██║  ██║███████║██████╔╝██║ █╗ ██║██║██╔██╗ ██║
+██║  ██║██╔══██║██╔══██╗██║███╗██║██║██║╚██╗██║
+██████╔╝██║  ██║██║  ██║╚███╔███╔╝██║██║ ╚████║
+╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝
+"""
+
+SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+
+
+async def _spin(label: str) -> None:
+    """One-line live spinner; cancel the task when boot work finishes."""
+    index = 0
+    while True:
+        sys.stdout.write(f"\r  {SPINNER_FRAMES[index % len(SPINNER_FRAMES)]} {label}")
+        sys.stdout.flush()
+        index += 1
+        await asyncio.sleep(0.1)
+
+
+def _clear_spinner() -> None:
+    sys.stdout.write("\r\033[K")
+    sys.stdout.flush()
+
+
+def _banner(connected: list[str], mcp_tools: list) -> None:
+    """Wordmark + compact status; interactive terminals only."""
+    if not sys.stdout.isatty():
+        print(f"[mcp] servers: {connected or 'none'}")
+        print(f"[mcp] tools: {len(mcp_tools)}")
+        return
+    print(WORDMARK)
+    print(f"        autonomous agentic engine · phase 3")
+    print(f"  servers {len(connected)} · mcp tools {len(mcp_tools)} · native tools {len(ALL_TOOLS)}")
+    print(f"  {', '.join(connected) if connected else 'no MCP servers'}\n")
 
 
 async def _ask(prompt: str) -> str | None:
@@ -105,6 +144,8 @@ async def _chat(graph, memory: MemoryClient, saver, mcp_tools: list) -> None:
         user_input = await _ask("\nyou > ")
         if user_input is None or user_input.lower() in {"exit", "quit"}:
             break
+        if not user_input:
+            continue
         if user_input.lower() == "/new":
             thread["id"] = f"session-{int(asyncio.get_event_loop().time())}"
             print(f"  [new session: {thread['id']}]")
@@ -139,20 +180,21 @@ async def _chat(graph, memory: MemoryClient, saver, mcp_tools: list) -> None:
 
 async def main() -> None:
     mcp = MCPClient()
+    spinner = asyncio.create_task(_spin("booting Darwin…"))
     try:
         connected = await mcp.connect_all()
         mcp_tools = [to_langchain_tool(mcp, meta) for meta in mcp.tools()]
         index_tools(mcp_tools)
-        counts = {}
-        for name in connected:
-            counts[name] = sum(1 for meta in mcp.tools() if meta["server"] == name)
-        print(f"[mcp] servers: {connected or 'none'}")
-        print(f"[mcp] tools: {sum(counts.values())} total — {counts}")
+    finally:
+        spinner.cancel()
+        _clear_spinner()
 
+    try:
+        _banner(connected, mcp_tools)
         async with AsyncPostgresSaver.from_conn_string(config.POSTGRES_URL) as saver:
             await saver.setup()
             graph = build_graph(get_llm(), saver, tools=ALL_TOOLS, mcp_tools=mcp_tools)
-            await _chat(graph, memory := get_memory_client(), saver, mcp_tools)
+            await _chat(graph, get_memory_client(), saver, mcp_tools)
     finally:
         await mcp.cleanup()
 

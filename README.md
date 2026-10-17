@@ -45,9 +45,12 @@ surface per turn. Connected today:
 | exa-mcp-server | neural web search |
 | Playwright MCP | headless browser automation and visual capture |
 | GitHub MCP | repository exploration, diffs, issues and pull requests |
+| mcp-server-git | local repo status, diffs, log, commits, branches |
+| mcp-server-docker | container lifecycles, images, networks, volumes |
+| context7-mcp | versioned library documentation on demand |
 
-Thanks to the Model Context Protocol ecosystem and the server authors — including `mcp-server-docker`
-for container lifecycles, `context7-mcp` for versioned library docs, and local Git tooling.
+All servers speak MCP over **stdio** (started from `mcp.json`); HTTP/SSE transports are not wired yet.
+Tools are namespaced `server__tool`, and only the most relevant subset is bound per turn.
 
 ## Category B — Custom Tools (built in-house)
 
@@ -99,7 +102,7 @@ graph TD;
 
 - **Phase 1 — Core Reasoning Engine:** StateGraph, Postgres checkpointing, mem0 memory (Qdrant + Neo4j). ✅
 - **Phase 2 — Native Tooling:** Sandboxed shell, file operations, document parser, Pydantic guardrails. ✅
-- **Phase 3 — MCP & Routing:** MCP servers, Tool RAG, two-tier permissions.
+- **Phase 3 — MCP & Routing:** 13 MCP servers, Tool RAG, two-tier permissions. ✅
 - **Phase 4 — DevOps:** Docker/Lima sandboxing, Git/GitHub MCP.
 
 ## Getting Started

@@ -42,7 +42,10 @@ class Config:
         "get_file_contents,list_commits,get_commit,search_code,search_repositories,"
         "list_branches,list_issues,get_issue,list_issue_comments,list_pull_requests,"
         "get_pull_request,get_pull_request_files,get_pull_request_diff,"
-        "get_pull_request_comments,get_pull_request_reviews,list_releases,get_latest_release",
+        "get_pull_request_comments,get_pull_request_reviews,list_releases,get_latest_release,"
+        "git_status,git_diff,git_diff_unstaged,git_diff_staged,git_log,git_show,"
+        "list_containers,container_logs,inspect_container,list_images,list_networks,list_volumes,"
+        "resolve-library-id,query-docs",
     ).split(",")
 
     # Permission boundary

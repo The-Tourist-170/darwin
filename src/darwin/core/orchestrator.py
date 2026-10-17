@@ -164,6 +164,23 @@ def _route_scope(state: AgentState) -> str:
     return "approve" if state.get("approved", True) else "agent"
 
 
+def _wire_safe(message: BaseMessage) -> BaseMessage:
+    """Guarantee non-null, non-list content on the wire.
+
+    Strict OpenAI-compatible proxies reject null/empty content (langchain-openai turns "" into
+    None on tool-call turns, and empty user messages are empty strings).
+    """
+    content = message.content
+    if isinstance(content, list):
+        content = " ".join(
+            block.get("text", "") if isinstance(block, dict) else str(block) for block in content
+        )
+    if content is None or not str(content).strip():
+        content = " "
+    message.content = content
+    return message
+
+
 def _sanitize_history(state: AgentState) -> list[BaseMessage]:
     """Redact secrets everywhere and reject injection on the latest human input.
 
@@ -174,24 +191,22 @@ def _sanitize_history(state: AgentState) -> list[BaseMessage]:
     stored = [m for m in state["messages"] if not isinstance(m, SystemMessage)]
     for i, msg in enumerate(stored):
         if isinstance(msg, HumanMessage):
+            text = str(_wire_safe(msg).content)
             try:
-                cleaned.append(HumanMessage(content=sanitize_input(msg.content), id=msg.id))
+                cleaned.append(HumanMessage(content=sanitize_input(text), id=msg.id))
             except ValueError:
                 if i == len(stored) - 1:
                     raise
                 cleaned.append(msg)
         elif isinstance(msg, ToolMessage):
-            content = sanitize_output(msg.content) or " "
+            content = sanitize_output(_wire_safe(msg).content) or " "
             cleaned.append(ToolMessage(content=content, tool_call_id=msg.tool_call_id, id=msg.id))
         elif isinstance(msg, AIMessage):
-            if not msg.content:
-                # OpenAI-compatible proxies reject null content on tool-call turns,
-                # and langchain-openai turns "" into None when tool calls are present.
-                msg.content = " "
+            msg.content = sanitize_output(_wire_safe(msg).content)
             cleaned.append(msg)
         else:
-            cleaned.append(msg)
-    return cleaned
+            cleaned.append(_wire_safe(msg))
+    return [_wire_safe(m) for m in cleaned]
 
 
 def build_graph(
@@ -234,7 +249,7 @@ def build_graph(
         model = llm.bind_tools(bound) if bound else llm
 
         reply = await model.ainvoke([SystemMessage(content=SYSTEM_PROMPT + state.get("context", "")), *messages])
-        reply.content = sanitize_output(reply.content)
+        reply.content = sanitize_output(_wire_safe(reply).content)
         return {"messages": [reply]}
 
     graph = StateGraph(AgentState)
